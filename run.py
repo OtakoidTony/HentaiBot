@@ -1,8 +1,4 @@
-import urllib.request
 import os
-import sqlite3
-from discord.ext import commands
-import codecs
 import requests
 from bs4 import BeautifulSoup
 import random
