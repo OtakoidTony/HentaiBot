@@ -4,16 +4,17 @@ import math
 import requests
 import random
 import nextcord
-from nextcord.ext.commands import AutoShardedBot
+from nextcord.ext.commands import Bot
 from nextcord.ext.application_checks import is_nsfw
 from nextcord.ext.application_checks.errors import ApplicationNSFWChannelRequired
+import nekos_fun
 
 intents=nextcord.Intents(messages = True, members = True, typing = True, guilds = True)
-bot = AutoShardedBot(intents=intents)
+bot = Bot(intents=intents)
 game = nextcord.Game("Naughty")
-bot.remove_command('help')
+bot.remove_command("help")
 
-token = os.environ['TOKEN']
+token = os.environ["TOKEN"]
 
 
 def toHHMMSS(this):
@@ -34,7 +35,7 @@ def toHHMMSS(this):
         seconds = "0" + str(seconds)
     else:
         seconds = str(seconds)
-    return hours + ':' + minutes + ':' + seconds
+    return hours + ":" + minutes + ":" + seconds
 
 
 @bot.event
@@ -60,18 +61,31 @@ async def help(ctx:nextcord.Interaction):
 @is_nsfw()
 async def gelbooru(ctx:nextcord.Interaction, tag = nextcord.SlashOption(required=False)):
     await ctx.response.defer()
+    formated_tag = tag.replace(" ", "_")
     if tag == None:
         api="https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=rating:explicit+-loli+-shota+-cub"
         response = requests.get(api)
         ret = json.loads(response.text)
-        image = random.choice(ret['post'])["file_url"]
+        post = random.choice(ret["post"])
     else:
-        api="https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=rating:explicit+-loli+-shota+-cub" + tag
+        api="https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&limit=100&tags=rating:explicit+-loli+-shota+-cub" + formated_tag
         response = requests.get(api)
         ret = json.loads(response.text)
-        image = random.choice(ret['post'])["file_url"]
-    embed = nextcord.Embed(title="Gelbooru API").set_image(url=image)
-    await ctx.followup.send(embed=embed)
+        post = random.choice(ret["post"])
+    source = post["source"]
+    owner = post["owner"]
+    score = post["score"]
+    image=post["file_url"]
+    created_at=post["created_at"]
+    if image.endswith(".mp4"):
+        await ctx.followup.send(image)
+    else:
+        embed = nextcord.Embed(title="Created by {}".format(owner))
+        embed.add_field(name="Source", value="[Click here]({})".format(source), inline=True)
+        embed.add_field(name="Score", value=score, inline=True)
+        embed.set_image(url=image)
+        embed.set_footer(text="Fetched from Gelbooru\nCreated at {}".format(created_at))
+        await ctx.followup.send(embed=embed)
 
 @bot.slash_command()
 @is_nsfw()
@@ -81,10 +95,19 @@ async def yandere(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=F
         ret = random.choice(requests.get(
             "https://yande.re/post.json?limit=100&tags=rating:explicit+-loli+-shota+-cub").json())
     else:
+        tag = tag.replace(" ", "_")
         ret = random.choice(requests.get(
             "https://yande.re/post.json?limit=100&tags=rating:explicit+-loli+-shota+-cub" + tag).json())
-    embed = nextcord.Embed(title="Yandere API").set_image(url=ret["file_url"])
-    embed.set_footer(text=ret["created_at"])
+    created_at = ret["created_at"]
+    file=ret["file_url"]
+    author=ret["author"]
+    source=ret["source"]
+    score=ret["score"]
+    embed = nextcord.Embed(title="Created by {}".format(author))
+    embed.add_field(name="Source", value="[Click here]({})".format(source), inline=True)
+    embed.add_field(name="Score", value=score, inline=True)
+    embed.set_image(url=file)
+    embed.set_footer(text="Fetched from Yande.re\nCreated at {}".format(created_at))
     await ctx.followup.send(embed=embed)
 
 @bot.slash_command()
@@ -92,21 +115,97 @@ async def yandere(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=F
 async def konachan(ctx:nextcord.Interaction, tag=nextcord.SlashOption(required=False)):
     await ctx.response.defer()
     if tag == None:
-        konachan_api = random.choice(requests.get("https://konachan.com/post.json?s=post&q=index&limit=100&tags=rating:explicit+-loli+-shota+-cub").json())
+        ret = random.choice(requests.get("https://konachan.com/post.json?s=post&q=index&limit=100&tags=rating:explicit+-loli+-shota+-cub").json())
 
     else:
-        konachan_api = random.choice(requests.get(f"https://konachan.com/post.json?s=post&q=index&limit=100&tags=rating:explicit+-loli+-shota+-cub+{tag}").json())
+        tag = tag.replace(" ", "_")
+        ret = random.choice(requests.get(f"https://konachan.com/post.json?s=post&q=index&limit=100&tags=rating:explicit+-loli+-shota+-cub" + tag).json())
 
-    embed = nextcord.Embed(color=0xFFC0CB)
-    embed.set_image(url=konachan_api['file_url'])
-    embed.set_footer(text="Fetched from Konachan")
+    created_at = ret["created_at"]
+    file = ret["file_url"]
+    author = ret["author"]
+    source = ret["source"]
+    score = ret["score"]
+    embed = nextcord.Embed(title="Created by {}".format(author))
+    embed.add_field(
+        name="Source", value="[Click here]({})".format(source), inline=True)
+    embed.add_field(name="Score", value=score, inline=True)
+    embed.set_image(url=file)
+    embed.set_footer(
+        text="Fetched from Konachan\nCreated at {}".format(created_at))
     await ctx.followup.send(embed=embed)
+
+
+@bot.slash_command()
+@is_nsfw()
+async def danbooru(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=False)):
+    await ctx.response.defer()
+    if tag == None:
+        ret = random.choice(requests.get(
+            "https://danbooru.donmai.us/posts.json?limit=100&tags=rating:explicit-loli-shota-cub").json())
+
+    else:
+        tag = tag.replace(" ", "_")
+        ret = random.choice(requests.get(
+            "https://danbooru.donmai.us/posts.json?limit=100&tags=rating:explicit-loli-shota-cub" + tag).json())
+
+    created_at = ret["created_at"]
+    file = ret["file_url"]
+    author = ret["tag_string_artist"]
+    source = ret["source"]
+    score = ret["score"]
+    embed = nextcord.Embed(title="Created by {}".format(author))
+    embed.add_field(
+        name="Source", value="[Click here]({})".format(source), inline=True)
+    embed.add_field(name="Score", value=score, inline=True)
+    embed.set_image(url=file)
+    embed.set_footer(
+        text="Fetched from Danbooru\nCreated at {}".format(created_at))
+    await ctx.followup.send(embed=embed)
+
+@bot.slash_command(description="Get lewded nekos from the NekoLove API")
+@is_nsfw()
+async def nekolewd(ctx:nextcord.Interaction):
+    await ctx.response.defer()
+    ret = requests.get("https://neko-love.xyz/api/v1/nekolewd").json()
+    response=ret["code"]
+    image=ret["url"]
+
+    if response !=200:
+        embed = nextcord.Embed(description="Error with API!\nPlease contact the neko-love.xyz team. If the fault is not on their side, please reach up to me")
+        await ctx.followup.send(embed=embed)
+    else:
+        embed = nextcord.Embed()
+        embed.set_image(url=image)
+        embed.set_footer(
+            text="Fetched from NekoLove")
+        await ctx.followup.send(embed=embed)
+
+@bot.slash_command(description="Get images/gif from Nekos.Fun")
+@is_nsfw()
+async def nekosfun(ctx:nextcord.Interaction, tag=nextcord.SlashOption(choices=["ass", "bj", "boobs", "cum", "hentai", "spank", "gasm", "lesbian", "pussy"], required=False)):
+    if tag == None:
+        tags = ["ass", "bj", "boobs", "cum", "hentai",
+                "spank", "gasm", "lesbian", "pussy"]
+        image = nekos_fun.nekofun(random.choice(tags))
+    
+    else:
+        image = nekos_fun.nekofun(str(tag))
+
+    if image != 200:
+        await ctx.followup.send(image)
+    else:
+        embed = nextcord.Embed()
+        embed.set_image(url=image)
+        embed.set_footer(
+            text="Fetched from Nekos.Fun")
+        await ctx.followup.send(embed=embed)
 
 @bot.slash_command()
 @is_nsfw()
 async def hanime(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=True)):
     await ctx.response.defer()
-    res = requests.get("https://members.hanime.tv/api/v5/hentai-videos/" + tag.replace(' ', '-'), headers={'User-Agent': "Mozilla/5.0", 'X-Directive': "api"}).json()["hentai_video"]
+    res = requests.get("https://members.hanime.tv/api/v5/hentai-videos/" + tag.replace(" ", "-"), headers={"User-Agent": "Mozilla/5.0", "X-Directive": "api"}).json()["hentai_video"]
     embed = nextcord.Embed(title="Yandere API", description=res["brand"]).set_image(url=res["poster_url"])
     embed.set_thumbnail(url = res["cover_url"])
     embed.add_field(name="Views", value=res["views"], inline=True)
@@ -122,7 +221,7 @@ async def hanime(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=Tr
 async def on_application_command_error(ctx:nextcord.Interaction, error):
     if isinstance(error, ApplicationNSFWChannelRequired):
         await ctx.response.defer()
-        embed = nextcord.Embed(title='Hentai Failed', description="Hentai couldn't be sent in this channel", color=0xff0000).add_field(name="Reason", value="Channel is not NSFW enabled")
+        embed = nextcord.Embed(title="Hentai Failed", description="Hentai couldn't be sent in this channel", color=0xff0000).add_field(name="Reason", value="Channel is not NSFW enabled")
         await ctx.followup.send(embed=embed)
 
 bot.run(token)
