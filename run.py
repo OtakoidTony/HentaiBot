@@ -201,21 +201,7 @@ async def nekosfun(ctx:nextcord.Interaction, tag=nextcord.SlashOption(choices=["
             text="Fetched from Nekos.Fun")
         await ctx.followup.send(embed=embed)
 
-@bot.slash_command()
-@is_nsfw()
-async def hanime(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=True)):
-    await ctx.response.defer()
-    res = requests.get("https://members.hanime.tv/api/v5/hentai-videos/" + tag.replace(" ", "-"), headers={"User-Agent": "Mozilla/5.0", "X-Directive": "api"}).json()["hentai_video"]
-    embed = nextcord.Embed(title="Yandere API", description=res["brand"]).set_image(url=res["poster_url"])
-    embed.set_thumbnail(url = res["cover_url"])
-    embed.add_field(name="Views", value=res["views"], inline=True)
-    embed.add_field(name="Interests", value=res["interests"], inline=True)
-    embed.add_field(name="Duration", value=toHHMMSS(res["duration_in_ms"]), inline=True)
-    embed.add_field(name="Likes", value=res["likes"], inline=True)
-    embed.add_field(name="Dislikes", value=res["dislikes"], inline=True)
-    embed.add_field(name="Downloads", value=res["downloads"], inline=True)
-    embed.set_footer(text=res["released_at"])
-    await ctx.followup.send(embed=embed)
+
 
 @bot.event
 async def on_application_command_error(ctx:nextcord.Interaction, error):
