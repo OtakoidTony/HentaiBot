@@ -1,65 +1,56 @@
 import json
 import os
-import math
 import requests
 import random
-import nextcord
-from nextcord.ext.commands import Bot
-from nextcord.ext.application_checks import is_nsfw
-from nextcord.ext.application_checks.errors import ApplicationNSFWChannelRequired
 import nekos_fun
+import discord
+from discord.ext import commands
+from discord import app_commands
+from typing import Optional, Literal
 
-intents=nextcord.Intents(messages = True, members = True, typing = True, guilds = True)
+
+class Bot(discord.Client):
+    def __init__(self, *, intents: discord.Intents):
+        super().__init__(intents=intents)
+        self.tree = app_commands.CommandTree(self)
+    async def setup_hook(self):
+        await self.tree.sync()
+
+
+intents=discord.Intents(messages = True, members = True, typing = True, guilds = True)
 bot = Bot(intents=intents)
-game = nextcord.Game("Naughty")
-bot.remove_command("help")
+game = discord.Game("Naughty")
 
 token = os.environ["TOKEN"]
-
-
-def toHHMMSS(this):
-    myNum = int(this)
-    hours = math.floor(myNum / 3600000)
-    minutes = math.floor((myNum - (hours * 3600000)) / 60000)
-    seconds = math.floor((myNum - (hours * 3600000) - (minutes * 60000)) / 1000)
-
-    if (hours < 10):
-        hours = "0" + str(hours)
-    else:
-        hours = str(hours)
-    if (minutes < 10):
-        minutes = "0" + str(minutes)
-    else:
-        minutes = str(minutes)
-    if (seconds < 10):
-        seconds = "0" + str(seconds)
-    else:
-        seconds = str(seconds)
-    return hours + ":" + minutes + ":" + seconds
-
 
 @bot.event
 async def on_ready():
     print(bot.user.name)
-    await bot.change_presence(status=nextcord.Status.idle, activity=game)
+    await bot.change_presence(status=discord.Status.idle, activity=game)
 
 
-@bot.slash_command()
-async def help(ctx:nextcord.Interaction):
+@bot.tree.command(description="Shows the help menu", nsfw=True)
+async def help(ctx:discord.Interaction):
     await ctx.response.defer()
     ret = "```\n"
     ret += "gelbooru [tags]\n"
-    ret += "Get image from Gelbooru.\n"
+    ret += "Get image/video from Gelbooru.\n"
     ret += "yandere [tags]\n"
     ret += "Get image from Yandere.\n"
-    ret += "hanime [title]\n"
-    ret += "Retrieve adult animation information from HTV (tag required).\n"
+    ret += "konachan [tags]\n"
+    ret += "Get image from Konachan.\n"
+    ret += "danbooru [tags]\n"
+    ret += "Get image from danbooru.\n"
+    ret += "nekolewd\n"
+    ret += "Get lewded nekos from NekoLove.\n"
+    ret += "nekosfun\n"
+    ret += "Get images/gifs from NekosLife.\n"
     ret += "```"
     await ctx.followup.send(ret)
 
-@bot.slash_command()
-@is_nsfw()
-async def gelbooru(ctx:nextcord.Interaction, tag = nextcord.SlashOption(required=False)):
+@bot.tree.command(description="Get hentai from Gelbooru", nsfw=True)
+@app_commands.describe(tag="Add a tag")
+async def gelbooru(ctx:discord.Interaction, tag:Optional[str]=None)->None:
     await ctx.response.defer()
     formated_tag = tag.replace(" ", "_")
     if tag == None:
@@ -75,21 +66,22 @@ async def gelbooru(ctx:nextcord.Interaction, tag = nextcord.SlashOption(required
     source = post["source"]
     owner = post["owner"]
     score = post["score"]
-    image=post["file_url"]
+    image:str=post["file_url"]
     created_at=post["created_at"]
     if image.endswith(".mp4"):
         await ctx.followup.send(image)
     else:
-        embed = nextcord.Embed(title="Created by {}".format(owner))
+        embed = discord.Embed(title="Created by {}".format(owner))
         embed.add_field(name="Source", value="[Click here]({})".format(source), inline=True)
         embed.add_field(name="Score", value=score, inline=True)
         embed.set_image(url=image)
         embed.set_footer(text="Fetched from Gelbooru\nCreated at {}".format(created_at))
         await ctx.followup.send(embed=embed)
 
-@bot.slash_command()
-@is_nsfw()
-async def yandere(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=False)):
+
+@bot.tree.command(description="Get hentai from Yandere", nsfw=True)
+@app_commands.describe(tag="Add a tag")
+async def yandere(ctx: discord.Interaction, tag:Optional[str]=None)->None:
     await ctx.response.defer()
     if tag == None:
         ret = random.choice(requests.get(
@@ -103,16 +95,17 @@ async def yandere(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=F
     author=ret["author"]
     source=ret["source"]
     score=ret["score"]
-    embed = nextcord.Embed(title="Created by {}".format(author))
+    embed = discord.Embed(title="Created by {}".format(author))
     embed.add_field(name="Source", value="[Click here]({})".format(source), inline=True)
     embed.add_field(name="Score", value=score, inline=True)
     embed.set_image(url=file)
     embed.set_footer(text="Fetched from Yande.re\nCreated at {}".format(created_at))
     await ctx.followup.send(embed=embed)
 
-@bot.slash_command()
-@is_nsfw()
-async def konachan(ctx:nextcord.Interaction, tag=nextcord.SlashOption(required=False)):
+
+@bot.tree.command(description="Get hentai from Konachan", nsfw=True)
+@app_commands.describe(tag="Add a tag")
+async def konachan(ctx:discord.Interaction, tag:Optional[str]=None)->None:
     await ctx.response.defer()
     if tag == None:
         ret = random.choice(requests.get("https://konachan.com/post.json?s=post&q=index&limit=100&tags=rating:explicit+-loli+-shota+-cub").json())
@@ -126,7 +119,7 @@ async def konachan(ctx:nextcord.Interaction, tag=nextcord.SlashOption(required=F
     author = ret["author"]
     source = ret["source"]
     score = ret["score"]
-    embed = nextcord.Embed(title="Created by {}".format(author))
+    embed = discord.Embed(title="Created by {}".format(author))
     embed.add_field(
         name="Source", value="[Click here]({})".format(source), inline=True)
     embed.add_field(name="Score", value=score, inline=True)
@@ -136,9 +129,9 @@ async def konachan(ctx:nextcord.Interaction, tag=nextcord.SlashOption(required=F
     await ctx.followup.send(embed=embed)
 
 
-@bot.slash_command()
-@is_nsfw()
-async def danbooru(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=False)):
+@bot.tree.command(description="Get hentai from Danbooru", nsfw=True)
+@app_commands.describe(tag="Add a tag")
+async def danbooru(ctx: discord.Interaction, tag:Optional[str]=None)->None:
     await ctx.response.defer()
     if tag == None:
         ret = random.choice(requests.get(
@@ -154,7 +147,7 @@ async def danbooru(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=
     author = ret["tag_string_artist"]
     source = ret["source"]
     score = ret["score"]
-    embed = nextcord.Embed(title="Created by {}".format(author))
+    embed = discord.Embed(title="Created by {}".format(author))
     embed.add_field(
         name="Source", value="[Click here]({})".format(source), inline=True)
     embed.add_field(name="Score", value=score, inline=True)
@@ -163,27 +156,28 @@ async def danbooru(ctx: nextcord.Interaction, tag=nextcord.SlashOption(required=
         text="Fetched from Danbooru\nCreated at {}".format(created_at))
     await ctx.followup.send(embed=embed)
 
-@bot.slash_command(description="Get lewded nekos from the NekoLove API")
-@is_nsfw()
-async def nekolewd(ctx:nextcord.Interaction):
+
+@bot.tree.command(description="Get lewded nekos from NekoLove", nsfw=True)
+async def nekolewd(ctx:discord.Interaction):
     await ctx.response.defer()
     ret = requests.get("https://neko-love.xyz/api/v1/nekolewd").json()
     response=ret["code"]
     image=ret["url"]
 
     if response !=200:
-        embed = nextcord.Embed(description="Error with API!\nPlease contact the neko-love.xyz team. If the fault is not on their side, please reach up to me")
+        embed = discord.Embed(description="Error with API!\nPlease contact the neko-love.xyz team. If the fault is not on their side, please reach up to me")
         await ctx.followup.send(embed=embed)
     else:
-        embed = nextcord.Embed()
+        embed = discord.Embed()
         embed.set_image(url=image)
         embed.set_footer(
             text="Fetched from NekoLove")
         await ctx.followup.send(embed=embed)
 
-@bot.slash_command(description="Get images/gif from Nekos.Fun")
-@is_nsfw()
-async def nekosfun(ctx:nextcord.Interaction, tag=nextcord.SlashOption(choices=["ass", "bj", "boobs", "cum", "hentai", "spank", "gasm", "lesbian", "pussy"], required=False)):
+
+@bot.tree.command(description="Get an image/gif from NekosLife", nsfw=True)
+@app_commands.describe(tag="Which tag?")
+async def nekosfun(ctx:discord.Interaction, tag:Optional[Literal["ass", "bj", "boobs", "cum", "hentai", "spank", "gasm", "lesbian", "pussy"]]):
     if tag == None:
         tags = ["ass", "bj", "boobs", "cum", "hentai",
                 "spank", "gasm", "lesbian", "pussy"]
@@ -195,19 +189,21 @@ async def nekosfun(ctx:nextcord.Interaction, tag=nextcord.SlashOption(choices=["
     if image != 200:
         await ctx.followup.send(image)
     else:
-        embed = nextcord.Embed()
+        embed = discord.Embed()
         embed.set_image(url=image)
         embed.set_footer(
             text="Fetched from Nekos.Fun")
         await ctx.followup.send(embed=embed)
 
-
+@bot.tree.command(description="Ask a member if you can f*ck them")
+@app_commands.describe(member="Which member?")
+async def f_ck(ctx:discord.Integration, member:Member)
 
 @bot.event
-async def on_application_command_error(ctx:nextcord.Interaction, error):
-    if isinstance(error, ApplicationNSFWChannelRequired):
-        await ctx.response.defer()
-        embed = nextcord.Embed(title="Hentai Failed", description="Hentai couldn't be sent in this channel", color=0xff0000).add_field(name="Reason", value="Channel is not NSFW enabled")
+async def on_application_command_error(ctx:discord.Interaction, error:app_commands.AppCommandError):
+    if isinstance(error, KeyError):
+        embed = discord.Embed(title="Hentai Failed", description="Hentai couldn't be sent in this channel",
+            color=0xff0000).add_field(name="Reason", value="Tag not found")
         await ctx.followup.send(embed=embed)
 
 bot.run(token)
