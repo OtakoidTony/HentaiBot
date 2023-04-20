@@ -6,6 +6,7 @@ import nekos_fun
 import discord
 from discord import app_commands
 from typing import Optional, Literal
+from dotenv import load_dotenv
 
 
 class Bot(discord.Client):
@@ -22,7 +23,8 @@ intents = discord.Intents(messages=True, members=True, typing=True, guilds=True)
 bot = Bot(intents=intents)
 game = discord.Game("Naughty")
 
-token = os.environ["TOKEN"]
+load_dotenv()
+token = os.getenv('token')
 
 
 @bot.event
